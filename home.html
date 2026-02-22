@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nova Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Jacquard+24&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#135bec",
+          "background-dark": "#000000",
+        },
+        fontFamily: {
+          "display": ["Inter", "sans-serif"],
+          "sans": ["Inter", "sans-serif"],
+          "jacquard": ['"Jacquard 24"', "system-ui"]
+        },
+      },
+    },
+  }
+</script>
+<style>
+  body { min-height: 100vh; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in-up { animation: fadeUp 0.5s ease forwards; }
+</style>
+</head>
+<body class="bg-black text-slate-100 font-sans overflow-hidden">
+<main class="relative flex flex-col items-center justify-center min-h-screen w-full px-6">
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent pointer-events-none opacity-40"></div>
+  <div class="flex flex-col items-center w-full max-w-md gap-12 z-10 animate-fade-in-up">
+    <div class="flex flex-col items-center gap-2">
+      <h1 class="text-5xl font-jacquard tracking-[0.2em] text-white opacity-90 uppercase">Nova</h1>
+      <p class="text-white/25 text-xs tracking-widest uppercase font-light" id="date-time"></p>
+    </div>
+
+    <div class="w-full group">
+      <div class="relative flex items-center w-full">
+        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-white/50 group-focus-within:text-blue-400 transition-colors duration-300">
+          <span class="material-symbols-outlined font-light">search</span>
+        </div>
+        <input id="home-search" class="w-full bg-white/5 border border-white/10 text-white text-lg rounded-full py-4 pl-12 pr-4 placeholder:text-white/20 placeholder:font-light focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 focus:bg-white/10 transition-all duration-300 backdrop-blur-sm" placeholder="Search web" type="text" autocomplete="off"/>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-4 w-full px-2">
+      <a class="flex flex-col items-center gap-3 group/icon cursor-pointer" href="https://www.google.com">
+        <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover/icon:bg-white/10 group-hover/icon:text-white group-hover/icon:border-white/20 transition-all duration-300">
+          <span class="material-symbols-outlined text-2xl font-light">public</span>
+        </div>
+        <span class="text-[10px] uppercase tracking-wider text-white/30 font-medium group-hover/icon:text-white/60 transition-colors">Web</span>
+      </a>
+      <a class="flex flex-col items-center gap-3 group/icon cursor-pointer" href="https://www.youtube.com">
+        <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover/icon:bg-white/10 group-hover/icon:text-white group-hover/icon:border-white/20 transition-all duration-300">
+          <span class="material-symbols-outlined text-2xl font-light">play_circle</span>
+        </div>
+        <span class="text-[10px] uppercase tracking-wider text-white/30 font-medium group-hover/icon:text-white/60 transition-colors">Video</span>
+      </a>
+      <a class="flex flex-col items-center gap-3 group/icon cursor-pointer" href="https://x.com">
+        <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover/icon:bg-white/10 group-hover/icon:text-white group-hover/icon:border-white/20 transition-all duration-300">
+          <span class="material-symbols-outlined text-2xl font-light">flutter_dash</span>
+        </div>
+        <span class="text-[10px] uppercase tracking-wider text-white/30 font-medium group-hover/icon:text-white/60 transition-colors">Social</span>
+      </a>
+      <a class="flex flex-col items-center gap-3 group/icon cursor-pointer" href="https://www.reddit.com">
+        <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white/70 group-hover/icon:bg-white/10 group-hover/icon:text-white group-hover/icon:border-white/20 transition-all duration-300">
+          <span class="material-symbols-outlined text-2xl font-light">face</span>
+        </div>
+        <span class="text-[10px] uppercase tracking-wider text-white/30 font-medium group-hover/icon:text-white/60 transition-colors">Forum</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="absolute bottom-2 w-full flex justify-center pb-2">
+    <div class="h-1 w-32 bg-white/20 rounded-full overflow-hidden">
+      <div class="h-full w-1/2 bg-white/40 rounded-full"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // Date/time
+  function updateTime() {
+    const now = new Date();
+    const opts = { weekday: 'long', month: 'long', day: 'numeric' };
+    document.getElementById('date-time').textContent = now.toLocaleDateString('en-US', opts);
+  }
+  updateTime();
+  setInterval(updateTime, 60000);
+
+  // Search
+  const searchInput = document.getElementById('home-search');
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const val = searchInput.value.trim();
+      if (!val) return;
+      let url;
+      if (val.includes('.') && !val.includes(' ') && !val.startsWith('http')) {
+        url = 'https://' + val;
+      } else {
+        url = 'https://www.google.com/search?q=' + encodeURIComponent(val);
+      }
+      window.location.href = url;
+    }
+  });
+
+  // Quick links navigation
+  document.querySelectorAll('a[href]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.location.href = a.href;
+    });
+  });
+
+  // Focus search on load
+  setTimeout(() => searchInput.focus(), 100);
+</script>
+</body>
+</html>

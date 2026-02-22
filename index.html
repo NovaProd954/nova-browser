@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nova Browser</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Jacquard+24&display=swap" rel="stylesheet"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #000;
+    --surface: #0a0a0a;
+    --surface2: #111;
+    --surface3: #181818;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e8e8;
+    --text-muted: rgba(255,255,255,0.35);
+    --text-dim: rgba(255,255,255,0.15);
+    --accent: #135bec;
+    --accent-glow: rgba(19,91,236,0.3);
+    --radius: 6px;
+    --tab-h: 38px;
+    --bar-h: 62px;
+    --chrome-h: 100px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── Window chrome ── */
+  #chrome {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--chrome-h);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+  }
+
+  /* ── Tab bar ── */
+  #tab-bar {
+    height: var(--tab-h);
+    display: flex;
+    align-items: flex-end;
+    padding: 0 8px;
+    gap: 2px;
+    -webkit-app-region: drag;
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  #tab-bar::-webkit-scrollbar { display: none; }
+
+  .tab {
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    min-width: 120px;
+    max-width: 220px;
+    padding: 0 10px 0 12px;
+    border-radius: 6px 6px 0 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .tab:hover { background: var(--surface3); }
+  .tab.active {
+    background: var(--surface3);
+    border-color: var(--border2);
+    border-bottom: 1px solid var(--surface3);
+  }
+  .tab-title {
+    flex: 1;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--text-muted);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .tab.active .tab-title { color: var(--text); }
+  .tab-close {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .tab:hover .tab-close { opacity: 1; }
+  .tab-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+  .tab-spinner {
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #new-tab-btn {
+    -webkit-app-region: no-drag;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 20px;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    align-self: center;
+    margin-bottom: 2px;
+  }
+  #new-tab-btn:hover { background: var(--surface3); color: var(--text); }
+
+  #window-controls {
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding-right: 8px;
+    padding-bottom: 4px;
+    align-self: center;
+  }
+  .wc-btn {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+  .wc-btn:hover { filter: brightness(1.3); }
+  #wc-close { background: #ff5f57; }
+  #wc-min { background: #febc2e; }
+  #wc-max { background: #28c840; }
+
+  /* ── Nav bar ── */
+  #nav-bar {
+    height: var(--bar-h);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    -webkit-app-region: drag;
+    flex-shrink: 0;
+  }
+
+  .nav-btn {
+    -webkit-app-region: no-drag;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { background: var(--surface3); color: var(--text); }
+  .nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .nav-btn .material-symbols-outlined { font-size: 20px; font-variation-settings: 'wght' 300; }
+
+  /* ── URL bar ── */
+  #url-wrap {
+    -webkit-app-region: no-drag;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  #url-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    font-size: 16px;
+    pointer-events: none;
+    font-variation-settings: 'wght' 300;
+    transition: color 0.2s;
+  }
+  #url-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 9px 40px 9px 38px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  #url-input:focus {
+    border-color: var(--border2);
+    background: var(--surface3);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  #url-input::selection { background: var(--accent); color: #fff; }
+  #url-input::placeholder { color: var(--text-dim); }
+
+  #url-loading {
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 0 0 22px 22px;
+    transform-origin: left;
+    animation: loading-bar 1.5s ease-in-out infinite;
+    display: none;
+  }
+  @keyframes loading-bar {
+    0% { transform: scaleX(0); opacity: 1; }
+    60% { transform: scaleX(0.8); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0; }
+  }
+
+  #reload-btn-url {
+    position: absolute;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  #reload-btn-url:hover { color: var(--text); }
+  #reload-btn-url .material-symbols-outlined { font-size: 18px; font-variation-settings: 'wght' 300; }
+
+  /* ── Nova logo in nav ── */
+  #nova-logo {
+    font-family: 'Jacquard 24', system-ui;
+    font-size: 20px;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    -webkit-app-region: no-drag;
+    cursor: pointer;
+    transition: color 0.2s;
+    flex-shrink: 0;
+    margin-right: 4px;
+  }
+  #nova-logo:hover { color: #fff; }
+
+  /* ── Status bar ── */
+  #status-bar {
+    position: fixed;
+    bottom: 0; left: 0;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.7);
+    border-radius: 0 4px 0 0;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 60%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  #status-bar.visible { opacity: 1; }
+
+  /* ── Dropdown suggestions ── */
+  #suggestions {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+  }
+  .suggestion {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-size: 13px;
+  }
+  .suggestion:hover, .suggestion.selected { background: var(--surface3); }
+  .suggestion .material-symbols-outlined { font-size: 16px; color: var(--text-muted); font-variation-settings: 'wght' 300; }
+  .suggestion-text { flex: 1; color: var(--text); }
+  .suggestion-sub { font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div id="chrome">
+  <!-- Tab bar -->
+  <div id="tab-bar">
+    <div id="tabs-container" style="display:flex;align-items:flex-end;gap:2px;flex:1;overflow:hidden;"></div>
+    <button id="new-tab-btn" title="New Tab">
+      <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'wght' 300">add</span>
+    </button>
+    <div id="window-controls">
+      <button class="wc-btn" id="wc-close" title="Close"></button>
+      <button class="wc-btn" id="wc-min" title="Minimize"></button>
+      <button class="wc-btn" id="wc-max" title="Maximize"></button>
+    </div>
+  </div>
+
+  <!-- Nav bar -->
+  <div id="nav-bar">
+    <span id="nova-logo" title="Go Home">Nova</span>
+
+    <button class="nav-btn" id="btn-back" title="Back" disabled>
+      <span class="material-symbols-outlined">arrow_back_ios_new</span>
+    </button>
+    <button class="nav-btn" id="btn-forward" title="Forward" disabled>
+      <span class="material-symbols-outlined">arrow_forward_ios</span>
+    </button>
+
+    <div id="url-wrap">
+      <span class="material-symbols-outlined" id="url-icon">search</span>
+      <input id="url-input" type="text" placeholder="Search or enter URL" autocomplete="off" spellcheck="false"/>
+      <div id="url-loading"></div>
+      <div id="suggestions"></div>
+      <button id="reload-btn-url">
+        <span class="material-symbols-outlined" id="reload-icon">refresh</span>
+      </button>
+    </div>
+
+    <button class="nav-btn" id="btn-menu" title="Menu">
+      <span class="material-symbols-outlined">more_vert</span>
+    </button>
+  </div>
+</div>
+
+<div id="status-bar"></div>
+
+<script>
+const { nova } = window;
+let state = { tabs: [], activeTabId: null };
+
+const tabsContainer = document.getElementById('tabs-container');
+const urlInput = document.getElementById('url-input');
+const urlLoading = document.getElementById('url-loading');
+const urlIcon = document.getElementById('url-icon');
+const reloadIcon = document.getElementById('reload-icon');
+const btnBack = document.getElementById('btn-back');
+const btnForward = document.getElementById('btn-forward');
+const suggestionsEl = document.getElementById('suggestions');
+const statusBar = document.getElementById('status-bar');
+
+// Init
+(async () => {
+  state = await nova.getState();
+  renderTabs();
+  updateNavForActive();
+})();
+
+// Events from main process
+nova.onTabUpdated(({ id, title, url, loading }) => {
+  const tab = state.tabs.find(t => t.id === id);
+  if (!tab) return;
+  if (title !== undefined) tab.title = title;
+  if (url !== undefined) tab.url = url;
+  if (loading !== undefined) tab.loading = loading;
+  renderTabs();
+  if (id === state.activeTabId) {
+    urlLoading.style.display = loading ? 'block' : 'none';
+    reloadIcon.textContent = loading ? 'close' : 'refresh';
+    updateNavBtns();
+  }
+});
+
+nova.onUrlChanged(({ id, url }) => {
+  const tab = state.tabs.find(t => t.id === id);
+  if (tab) tab.url = url;
+  if (id === state.activeTabId && document.activeElement !== urlInput) {
+    urlInput.value = url === 'nova://home' ? '' : url;
+    updateUrlIcon(url);
+  }
+});
+
+nova.onTabCreated(async ({ id }) => {
+  state = await nova.getState();
+  renderTabs();
+});
+
+function renderTabs() {
+  tabsContainer.innerHTML = '';
+  state.tabs.forEach(tab => {
+    const el = document.createElement('div');
+    el.className = 'tab' + (tab.id === state.activeTabId ? ' active' : '');
+    el.dataset.id = tab.id;
+
+    const spinner = tab.loading ? `<div class="tab-spinner"></div>` : '';
+    el.innerHTML = `
+      ${spinner}
+      <span class="tab-title">${escHtml(tab.title || 'New Tab')}</span>
+      <span class="tab-close material-symbols-outlined" data-close="${tab.id}" style="font-size:14px;font-variation-settings:'wght' 400">close</span>
+    `;
+
+    el.addEventListener('click', async (e) => {
+      if (e.target.dataset.close) {
+        e.stopPropagation();
+        const res = await nova.closeTab(+e.target.dataset.close);
+        state.tabs = res.tabs;
+        state.activeTabId = res.activeTabId;
+        renderTabs();
+        updateNavForActive();
+        return;
+      }
+      const res = await nova.switchTab(tab.id);
+      state.activeTabId = tab.id;
+      renderTabs();
+      updateNavForActive();
+      if (res.url && res.url !== 'nova://home') {
+        urlInput.value = res.url;
+      } else {
+        urlInput.value = '';
+      }
+      updateUrlIcon(res.url || '');
+    });
+
+    tabsContainer.appendChild(el);
+  });
+}
+
+async function updateNavForActive() {
+  const tab = state.tabs.find(t => t.id === state.activeTabId);
+  if (!tab) return;
+  urlInput.value = (tab.url && tab.url !== 'nova://home') ? tab.url : '';
+  updateUrlIcon(tab.url || '');
+  updateNavBtns();
+}
+
+async function updateNavBtns() {
+  const canBack = await nova.canGoBack(state.activeTabId);
+  const canFwd = await nova.canGoForward(state.activeTabId);
+  btnBack.disabled = !canBack;
+  btnForward.disabled = !canFwd;
+}
+
+function updateUrlIcon(url) {
+  if (!url || url === 'nova://home') {
+    urlIcon.textContent = 'search';
+  } else if (url.startsWith('https://')) {
+    urlIcon.textContent = 'lock';
+    urlIcon.style.color = '#28c840';
+  } else {
+    urlIcon.textContent = 'warning';
+    urlIcon.style.color = '#febc2e';
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Navigation
+document.getElementById('new-tab-btn').addEventListener('click', async () => {
+  const res = await nova.newTab();
+  state.tabs = res.tabs;
+  state.activeTabId = res.id;
+  renderTabs();
+  urlInput.value = '';
+  updateUrlIcon('');
+  urlInput.focus();
+  updateNavBtns();
+});
+
+btnBack.addEventListener('click', () => nova.goBack(state.activeTabId));
+btnForward.addEventListener('click', () => nova.goForward(state.activeTabId));
+
+document.getElementById('btn-menu').addEventListener('click', () => {
+  // Future: context menu
+});
+
+document.getElementById('nova-logo').addEventListener('click', async () => {
+  await nova.navigate(state.activeTabId, 'nova://home');
+  urlInput.value = '';
+  updateUrlIcon('nova://home');
+});
+
+// Reload/stop
+document.getElementById('reload-btn-url').addEventListener('click', () => {
+  const tab = state.tabs.find(t => t.id === state.activeTabId);
+  if (tab?.loading) {
+    nova.stop(state.activeTabId);
+  } else {
+    nova.reload(state.activeTabId);
+  }
+});
+
+// URL input
+urlInput.addEventListener('focus', () => {
+  urlInput.select();
+  urlIcon.style.color = '';
+  urlIcon.textContent = 'search';
+  showSuggestions(urlInput.value);
+});
+
+urlInput.addEventListener('blur', () => {
+  setTimeout(() => hideSuggestions(), 150);
+  const tab = state.tabs.find(t => t.id === state.activeTabId);
+  if (tab) updateUrlIcon(tab.url || '');
+});
+
+urlInput.addEventListener('input', () => {
+  showSuggestions(urlInput.value);
+});
+
+urlInput.addEventListener('keydown', async (e) => {
+  const items = suggestionsEl.querySelectorAll('.suggestion');
+  let sel = suggestionsEl.querySelector('.suggestion.selected');
+  let selIdx = Array.from(items).indexOf(sel);
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (selIdx < items.length - 1) {
+      sel?.classList.remove('selected');
+      items[selIdx + 1].classList.add('selected');
+      urlInput.value = items[selIdx + 1].dataset.value;
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (selIdx > 0) {
+      sel?.classList.remove('selected');
+      items[selIdx - 1].classList.add('selected');
+      urlInput.value = items[selIdx - 1].dataset.value;
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    hideSuggestions();
+    const val = urlInput.value.trim();
+    if (!val) return;
+    const url = await nova.navigate(state.activeTabId, val);
+    updateUrlIcon(url || val);
+    urlInput.blur();
+  } else if (e.key === 'Escape') {
+    hideSuggestions();
+    urlInput.blur();
+  }
+});
+
+const QUICK_SITES = [
+  { label: 'Google', url: 'https://www.google.com', icon: 'public' },
+  { label: 'YouTube', url: 'https://www.youtube.com', icon: 'play_circle' },
+  { label: 'GitHub', url: 'https://github.com', icon: 'code' },
+  { label: 'Reddit', url: 'https://www.reddit.com', icon: 'forum' },
+  { label: 'Wikipedia', url: 'https://www.wikipedia.org', icon: 'menu_book' },
+  { label: 'Twitter / X', url: 'https://x.com', icon: 'flutter_dash' },
+];
+
+function showSuggestions(val) {
+  const v = val.trim().toLowerCase();
+  let html = '';
+
+  if (!v) {
+    QUICK_SITES.forEach(s => {
+      html += suggestionRow(s.icon, s.label, s.url, s.url);
+    });
+  } else {
+    // Filter quick sites
+    QUICK_SITES.filter(s => s.label.toLowerCase().includes(v) || s.url.includes(v))
+      .forEach(s => { html += suggestionRow(s.icon, s.label, s.url, s.url); });
+    // Search suggestion
+    html += suggestionRow('search', `Search for "${val}"`, `https://www.google.com/search?q=${encodeURIComponent(val)}`, `https://www.google.com/search?q=${encodeURIComponent(val)}`);
+    // URL suggestion if looks like URL
+    if (val.includes('.') && !val.includes(' ')) {
+      const u = val.startsWith('http') ? val : 'https://' + val;
+      html += suggestionRow('link', u, u, u);
+    }
+  }
+
+  if (!html) { hideSuggestions(); return; }
+  suggestionsEl.innerHTML = html;
+  suggestionsEl.style.display = 'block';
+
+  suggestionsEl.querySelectorAll('.suggestion').forEach(el => {
+    el.addEventListener('mousedown', async (e) => {
+      e.preventDefault();
+      const url = el.dataset.value;
+      urlInput.value = url;
+      hideSuggestions();
+      const navigated = await nova.navigate(state.activeTabId, url);
+      updateUrlIcon(navigated || url);
+    });
+  });
+}
+
+function suggestionRow(icon, text, sub, value) {
+  return `<div class="suggestion" data-value="${escHtml(value)}">
+    <span class="material-symbols-outlined">${icon}</span>
+    <div>
+      <div class="suggestion-text">${escHtml(text)}</div>
+      ${sub !== text ? `<div class="suggestion-sub">${escHtml(sub)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function hideSuggestions() {
+  suggestionsEl.style.display = 'none';
+}
+
+// Window controls
+document.getElementById('wc-close').addEventListener('click', () => nova.close());
+document.getElementById('wc-min').addEventListener('click', () => nova.minimize());
+document.getElementById('wc-max').addEventListener('click', () => nova.maximize());
+
+// Keyboard shortcuts
+document.addEventListener('keydown', async (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 't') { 
+    e.preventDefault();
+    const res = await nova.newTab();
+    state.tabs = res.tabs;
+    state.activeTabId = res.id;
+    renderTabs();
+    urlInput.value = '';
+    urlInput.focus();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+    e.preventDefault();
+    const res = await nova.closeTab(state.activeTabId);
+    state.tabs = res.tabs;
+    state.activeTabId = res.activeTabId;
+    renderTabs();
+    updateNavForActive();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+    e.preventDefault();
+    urlInput.focus();
+    urlInput.select();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+    e.preventDefault();
+    nova.reload(state.activeTabId);
+  }
+});
+</script>
+</body>
+</html>
