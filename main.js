@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, ipcMain, session } = require('electron');
+const { app, BrowserWindow, BrowserView, ipcMain } = require('electron');
 const path = require('path');
 
 let mainWindow;
@@ -24,6 +24,18 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
 
+  // Resize handler registered right after window creation (not at module scope)
+  mainWindow.on('resize', () => {
+    const [width, height] = mainWindow.getContentSize();
+    tabs.forEach(tab => {
+      if (tab.id === activeTabId) {
+        tab.view.setBounds({ x: 0, y: 100, width, height: height - 100 });
+      } else {
+        tab.view.setBounds({ x: 0, y: 100, width: 0, height: 0 });
+      }
+    });
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -31,6 +43,7 @@ function createWindow() {
 
 function createTab(url = 'nova://home') {
   const id = ++tabIdCounter;
+
   const view = new BrowserView({
     webPreferences: {
       contextIsolation: true,
@@ -39,49 +52,47 @@ function createTab(url = 'nova://home') {
     },
   });
 
-  tabs.push({ id, view, url, title: 'New Tab', favicon: null, loading: false });
+  tabs.push({ id, view, url, title: 'New Tab', loading: false });
   mainWindow.addBrowserView(view);
 
-  const bounds = mainWindow.getBounds();
-  view.setBounds({ x: 0, y: 100, width: bounds.width, height: bounds.height - 100 });
+  const [width, height] = mainWindow.getContentSize();
+  view.setBounds({ x: 0, y: 100, width, height: height - 100 });
   view.setAutoResize({ width: true, height: true });
 
   view.webContents.on('did-start-loading', () => {
     updateTab(id, { loading: true });
-    mainWindow.webContents.send('tab-updated', { id, loading: true });
+    safeSend('tab-updated', { id, loading: true });
   });
 
   view.webContents.on('did-stop-loading', () => {
-    const tab = tabs.find(t => t.id === id);
-    if (tab) {
-      const currentUrl = view.webContents.getURL();
-      const currentTitle = view.webContents.getTitle();
-      updateTab(id, { loading: false, url: currentUrl, title: currentTitle || 'New Tab' });
-      mainWindow.webContents.send('tab-updated', { id, loading: false, url: currentUrl, title: currentTitle || 'New Tab' });
-      mainWindow.webContents.send('url-changed', { id, url: currentUrl });
-    }
+    const currentUrl = view.webContents.getURL();
+    const currentTitle = view.webContents.getTitle() || 'New Tab';
+    updateTab(id, { loading: false, url: currentUrl, title: currentTitle });
+    safeSend('tab-updated', { id, loading: false, url: currentUrl, title: currentTitle });
+    safeSend('url-changed', { id, url: currentUrl });
   });
 
   view.webContents.on('page-title-updated', (e, title) => {
     updateTab(id, { title });
-    mainWindow.webContents.send('tab-updated', { id, title });
+    safeSend('tab-updated', { id, title });
   });
 
   view.webContents.on('did-navigate', (e, url) => {
     updateTab(id, { url });
-    mainWindow.webContents.send('url-changed', { id, url });
+    safeSend('url-changed', { id, url });
   });
 
   view.webContents.on('did-navigate-in-page', (e, url) => {
     updateTab(id, { url });
-    mainWindow.webContents.send('url-changed', { id, url });
+    safeSend('url-changed', { id, url });
   });
 
-  view.webContents.on('new-window', (e, newUrl) => {
-    e.preventDefault();
+  // Use setWindowOpenHandler instead of deprecated 'new-window' event
+  view.webContents.setWindowOpenHandler(({ url: newUrl }) => {
     createTab(newUrl);
     switchTab(tabIdCounter);
-    mainWindow.webContents.send('tab-created', { id: tabIdCounter });
+    safeSend('tab-created', { id: tabIdCounter });
+    return { action: 'deny' };
   });
 
   if (url === 'nova://home') {
@@ -93,6 +104,12 @@ function createTab(url = 'nova://home') {
   return id;
 }
 
+function safeSend(channel, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, data);
+  }
+}
+
 function updateTab(id, data) {
   const tab = tabs.find(t => t.id === id);
   if (tab) Object.assign(tab, data);
@@ -100,11 +117,10 @@ function updateTab(id, data) {
 
 function switchTab(id) {
   activeTabId = id;
-  const bounds = mainWindow.getBounds();
-
+  const [width, height] = mainWindow.getContentSize();
   tabs.forEach(tab => {
     if (tab.id === id) {
-      tab.view.setBounds({ x: 0, y: 100, width: bounds.width, height: bounds.height - 100 });
+      tab.view.setBounds({ x: 0, y: 100, width, height: height - 100 });
       mainWindow.setTopBrowserView(tab.view);
     } else {
       tab.view.setBounds({ x: 0, y: 100, width: 0, height: 0 });
@@ -114,7 +130,7 @@ function switchTab(id) {
 
 function closeTab(id) {
   const idx = tabs.findIndex(t => t.id === id);
-  if (idx === -1) return;
+  if (idx === -1) return activeTabId;
 
   const tab = tabs[idx];
   mainWindow.removeBrowserView(tab.view);
@@ -132,14 +148,20 @@ function closeTab(id) {
     switchTab(newActive.id);
     return newActive.id;
   }
+
   return activeTabId;
 }
 
-// IPC Handlers
+function tabInfo(t) {
+  return { id: t.id, title: t.title, url: t.url, loading: t.loading };
+}
+
+// ── IPC Handlers ──
+
 ipcMain.handle('new-tab', (e, url) => {
   const id = createTab(url || 'nova://home');
   switchTab(id);
-  return { id, tabs: tabs.map(t => ({ id: t.id, title: t.title, url: t.url, loading: t.loading })) };
+  return { id, tabs: tabs.map(tabInfo) };
 });
 
 ipcMain.handle('switch-tab', (e, id) => {
@@ -151,25 +173,30 @@ ipcMain.handle('switch-tab', (e, id) => {
 
 ipcMain.handle('close-tab', (e, id) => {
   const newActive = closeTab(id);
-  return { activeTabId: newActive, tabs: tabs.map(t => ({ id: t.id, title: t.title, url: t.url, loading: t.loading })) };
+  return { activeTabId: newActive, tabs: tabs.map(tabInfo) };
 });
 
 ipcMain.handle('navigate', (e, { id, url }) => {
   const tab = tabs.find(t => t.id === id);
-  if (!tab) return;
+  if (!tab) return null;
+
   let target = url.trim();
-  if (!target.startsWith('http://') && !target.startsWith('https://') && !target.startsWith('nova://')) {
+
+  if (target === 'nova://home') {
+    tab.view.webContents.loadFile('home.html');
+    updateTab(id, { url: 'nova://home' });
+    return 'nova://home';
+  }
+
+  if (!target.startsWith('http://') && !target.startsWith('https://')) {
     if (target.includes('.') && !target.includes(' ')) {
       target = 'https://' + target;
     } else {
       target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
     }
   }
-  if (target === 'nova://home') {
-    tab.view.webContents.loadFile('home.html');
-  } else {
-    tab.view.webContents.loadURL(target);
-  }
+
+  tab.view.webContents.loadURL(target);
   updateTab(id, { url: target });
   return target;
 });
@@ -194,12 +221,10 @@ ipcMain.handle('stop', (e, id) => {
   if (tab) tab.view.webContents.stop();
 });
 
-ipcMain.handle('get-state', () => {
-  return {
-    tabs: tabs.map(t => ({ id: t.id, title: t.title, url: t.url, loading: t.loading })),
-    activeTabId,
-  };
-});
+ipcMain.handle('get-state', () => ({
+  tabs: tabs.map(tabInfo),
+  activeTabId,
+}));
 
 ipcMain.handle('can-go-back', (e, id) => {
   const tab = tabs.find(t => t.id === id);
@@ -211,38 +236,21 @@ ipcMain.handle('can-go-forward', (e, id) => {
   return tab?.view.webContents.canGoForward() ?? false;
 });
 
-ipcMain.on('window-minimize', () => mainWindow.minimize());
+ipcMain.on('window-minimize', () => mainWindow?.minimize());
 ipcMain.on('window-maximize', () => {
+  if (!mainWindow) return;
   if (mainWindow.isMaximized()) mainWindow.unmaximize();
   else mainWindow.maximize();
 });
-ipcMain.on('window-close', () => mainWindow.close());
+ipcMain.on('window-close', () => mainWindow?.close());
 
-mainWindow?.on('resize', () => {
-  const bounds = mainWindow.getBounds();
-  tabs.forEach(tab => {
-    if (tab.id === activeTabId) {
-      tab.view.setBounds({ x: 0, y: 100, width: bounds.width, height: bounds.height - 100 });
-    }
-  });
-});
+// ── App lifecycle ──
 
 app.whenReady().then(() => {
   createWindow();
-  const firstTabId = createTab('nova://home');
-  activeTabId = firstTabId;
-  switchTab(firstTabId);
-
-  mainWindow.on('resize', () => {
-    const bounds = mainWindow.getBounds();
-    tabs.forEach(tab => {
-      if (tab.id === activeTabId) {
-        tab.view.setBounds({ x: 0, y: 100, width: bounds.width, height: bounds.height - 100 });
-      } else {
-        tab.view.setBounds({ x: 0, y: 100, width: 0, height: 0 });
-      }
-    });
-  });
+  const firstId = createTab('nova://home');
+  activeTabId = firstId;
+  switchTab(firstId);
 });
 
 app.on('window-all-closed', () => {
